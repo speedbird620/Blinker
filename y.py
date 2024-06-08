@@ -80,52 +80,54 @@ class clPFLAAMessage(object):
     def __init__(self, sentance):
 
         # See http://www.ediatec.ch/pdf/FLARM%20Data%20Port%20Specification%20v7.00.pdf for more information
-
-        # Example $PFLAA,0,-1234,1234,220,2,DD8F12,180,,30,-1.4,,1*60
-
-		#PFLAA,<AlarmLevel>,<RelativeNorth>,<RelativeEast>,<RelativeVertical>,<IDType>,<ID>,<Track>,<TurnRate>,<GroundSpeed>,<ClimbRate>,<AcftType>
-
-		# 0			AlarmLevel, 0 = no alarm, 1 = alarm: 13-18 seconds to impact, 2 = alarm: 9-12 seconds to impact, 3 = alarm: 0-8 seconds to impact
-		# -1234		RelativeNorth, relative position in meters true north from own position.
-		# 12345		RelativeEast, relative position in meters true east from own position. 
-		# 220		RelativeVertical, relative vertical separation in meters above own position
-		# 2			IDType, 1 = official ICAO 24-bit aircraft address, 2 = stable FLARM ID (chosen by FLARM), 3 = anonymous ID, used if stealth mode is activated either on the target or own aircraft
-		# DD8F12	ID
-		# 180		Track, the target’s true ground track in degrees. T
-		# Null		TurnRate, currently this field is empty
-		# 30		GroundSpeed, the target’s ground speed in m/s, 0 (zero) if not moving
-		# -1		ClimbRate, The target’s climb rate in m/s
-		# 4			AcftType:
-					# 0 = unknown
-					# 1 = glider / motor glider
-					# 2 = tow / tug plane
-					# 3 = helicopter / rotorcraft
-					# 4 = skydiver
-					# 5 = drop plane for skydivers
-					# 6 = hang glider (hard)
-					# 7 = paraglider (soft)
-					# 8 = aircraft with reciprocating engine(s)
-					# 9 = aircraft with jet/turboprop engine(s)
-					# A = unknown
-					# B = balloon
-					# C = airship
-					# D = unmanned aerial vehicle (UAV)
-					# E = unknown
-					# F = static object
-		# *60		CRC
+        # $PFLAA,<AlarmLevel>,<RelativeNorth>,<RelativeEast>,<RelativeVertical>,<IDType>,<ID>    ,<Track>,<TurnRate>,<GroundSpeed>,<ClimbRate>,<AcftType>
+        # $PFLAA,0           ,-19            ,6             ,-14               ,2       ,DDE602  ,159    ,          ,0            ,0.0        ,1*2C
+        # $PFLAA,0           ,25             ,-43           ,-22               ,2       ,DDE602  ,190    ,          ,4            ,-0.3       ,1*38
+         
+        # $PFLAA,0, 25,-43,-22,2,DDE602,190,,4,-0.3,1*38
+        # $PFLAA,0,-19,  6,-14,2,DDE602,159,,0, 0.0,1*2C
+          
+        # 0         AlarmLevel, 0 = no alarm, 1 = alarm: 13-18 seconds to impact, 2 = alarm: 9-12 seconds to impact, 3 = alarm: 0-8 seconds to impact
+        # -1234     RelativeNorth, relative position in meters true north from own position.
+        # 12345     RelativeEast, relative position in meters true east from own position. 
+        # 220       RelativeVertical, relative vertical separation in meters above own position
+        # 2         IDType, 1 = official ICAO 24-bit aircraft address, 2 = stable FLARM ID (chosen by FLARM), 3 = anonymous ID, used if stealth mode is activated either on the target or own aircraft
+        # DD8F12    ID
+        # 180       Track, the target’s true ground track in degrees. T
+        # Null      TurnRate, currently this field is empty
+        # 30        GroundSpeed, the target’s ground speed in m/s, 0 (zero) if not moving
+        # -1        ClimbRate, The target’s climb rate in m/s
+        # 4         AcftType:
+                    # 0 = unknown
+                    # 1 = glider / motor glider
+                    # 2 = tow / tug plane
+                    # 3 = helicopter / rotorcraft
+                    # 4 = skydiver
+                    # 5 = drop plane for skydivers
+                    # 6 = hang glider (hard)
+                    # 7 = paraglider (soft)
+                    # 8 = aircraft with reciprocating engine(s)
+                    # 9 = aircraft with jet/turboprop engine(s)
+                    # A = unknown
+                    # B = balloon
+                    # C = airship
+                    # D = unmanned aerial vehicle (UAV)
+                    # E = unknown
+                    # F = static object
+        # *60       CRC
 
         (self.PFLAA,
-		 self.AlarmLevel,
-		 self.RelativeNorth,
-		 self.RelativeEast,
-		 self.RelativeVertical,
-		 self.IDType,
-		 self.ID,
-		 self.Track,
-		 self.TurnRate,
-		 self.GroundSpeed,
-		 self.ClimbRate,
-		 self.AcftType,
+         self.AlarmLevel,
+         self.RelativeNorth,
+         self.RelativeEast,
+         self.RelativeVertical,
+         self.IDType,
+         self.ID,
+         self.Track,
+         self.TurnRate,
+         self.GroundSpeed,
+         self.ClimbRate,
+         #self.AcftType,
          self.CRC
         ) = sentance.replace("\r\n","").replace(":",",").split(",")
 
@@ -136,14 +138,15 @@ class clPFLAUMessage(object):
 
         # See http://www.ediatec.ch/pdf/FLARM%20Data%20Port%20Specification%20v7.00.pdf for more information
 
-        # Example $PFLAU,2,1,2,1,1,-45,2,50,75,1A304C*60
-        #          PFLAU,0,1,1,1,0,   ,0,  ,*63
+        # $PFLAU,<RX>,<TX>,<GPS>,<Power>,<AlarmLevel>,<RelativeBearing>,<AlarmType>,<RelativeVertical>,<RelativeDistance>,<ID>
+        # $PFLAU,2   ,1   ,2    ,1      ,1           ,-45              ,2          ,50                ,75                ,1A304C  *60
+        # $PFLAU,1   ,1   ,1    ,1      ,0           ,                 ,0          ,                  ,                  ,        *4E
+        # $PFLAU,0   ,1   ,1    ,1      ,0           ,                 ,0          ,                  ,                           *63
 
 
-		# PFLAU,<RX>,<TX>,<GPS>,<Power>,<AlarmLevel>,<RelativeBearing>,<AlarmType>,<RelativeVertical>,<RelativeDistance>,<ID>
+        # PFLAU,<RX>,<TX>,<GPS>,<Power>,<AlarmLevel>,<RelativeBearing>,<AlarmType>,<RelativeVertical>,<RelativeDistance>,<ID>
         
         # 2			Number of devices with unique IDs currently received regardless of the horizontal or vertical separation.
-
         # 1			Transmission status: 1 for OK and 0 for no transmission.
         # 2			GPS status: 0 = no GPS reception, 1 = 3d-fix on ground (i.e. not airborne), 2 = 3d-fix when airborne
         # 1			Power status: 1 for OK and 0 for under- or overvoltage
@@ -156,16 +159,57 @@ class clPFLAUMessage(object):
         # *60		CRC
 
         (self.PFLAU,
-		 self.RX,
-		 self.TX,
-		 self.GPS,
-		 self.Power,
-		 self.AlarmLevel,
-		 self.RelBearing,
-		 self.AlarmType,
-		 self.RelVertical,
-		 #self.RelDistance,
-		 #self.ID,
+         self.RX,
+         self.TX,
+         self.GPS,
+         self.Power,
+         self.AlarmLevel,
+         self.RelBearing,
+         self.AlarmType,
+         self.RelVertical,
+         self.RelDistance,
+         #self.ID,
+         self.CRC
+        ) = sentance.replace("\r\n","").replace(":",",").split(",")
+
+
+class clPFLAUMessage2(object):
+
+    def __init__(self, sentance):
+
+        # See http://www.ediatec.ch/pdf/FLARM%20Data%20Port%20Specification%20v7.00.pdf for more information
+
+        # $PFLAU,<RX>,<TX>,<GPS>,<Power>,<AlarmLevel>,<RelativeBearing>,<AlarmType>,<RelativeVertical>,<RelativeDistance>,<ID>
+        # $PFLAU,2   ,1   ,2    ,1      ,1           ,-45              ,2          ,50                ,75                ,1A304C  *60
+        # $PFLAU,1   ,1   ,1    ,1      ,0           ,                 ,0          ,                  ,                  ,        *4E
+        # $PFLAU,0   ,1   ,1    ,1      ,0           ,                 ,0          ,                  ,                           *63
+
+
+        # PFLAU,<RX>,<TX>,<GPS>,<Power>,<AlarmLevel>,<RelativeBearing>,<AlarmType>,<RelativeVertical>,<RelativeDistance>,<ID>
+        
+        # 2			Number of devices with unique IDs currently received regardless of the horizontal or vertical separation.
+        # 1			Transmission status: 1 for OK and 0 for no transmission.
+        # 2			GPS status: 0 = no GPS reception, 1 = 3d-fix on ground (i.e. not airborne), 2 = 3d-fix when airborne
+        # 1			Power status: 1 for OK and 0 for under- or overvoltage
+        # 1			AlarmLevel, 0 = no alarm, 1 = alarm: 13-18 seconds to impact, 2 = alarm: 9-12 seconds to impact, 3 = alarm: 0-8 seconds to impact
+        # -45		Relative bearing in degrees from true ground track to the intruder’s position
+        # 2			Type of alarm as assessed by FLARM, 0 = no aircraft within range or no-alarm traffic, information, 2 = aircraft alarm, 3 = obstacle/Alert Zone alarm
+        # 50		Relative vertical separation in meters above own position
+        # 75		Relative horizontal distance in meters to the target or obstacle
+        # 1A304C	ID of intruder
+        # *60		CRC
+
+        (self.PFLAU,
+         self.RX,
+         self.TX,
+         self.GPS,
+         self.Power,
+         self.AlarmLevel,
+         self.RelBearing,
+         self.AlarmType,
+         self.RelVertical,
+         #self.RelDistance,
+         #self.ID,
          self.CRC
         ) = sentance.replace("\r\n","").replace(":",",").split(",")
 
@@ -205,6 +249,7 @@ class clGPRMCMessage(object):
          self.MagVar,
          self.CRC
         ) = sentance.replace("\r\n","").replace(":",",").split(",")
+
 
 
 class clGPGGAMessage(object):
@@ -279,7 +324,7 @@ while True:
     if len(NMEAin) > 1:	    # Something has been recieved on the UART, lets check it out
         
         # Adding the leftovers from the last evaluation
-        NMEAin = NMEAleftover + NMEAin
+        #NMEAin = NMEAleftover + NMEAin
         #print ("NMEAin: " + NMEAin)
 
         # Setting the scene    
@@ -314,17 +359,16 @@ while True:
                     
                     #print ("i : " + str(FoundDollar) + " j : " + str(FoundNewLine) + " NMEA: " + NMEAline)	# Printing the start and end point for trouble shooting purpose
 
-                    print (NMEAline)
-                    
                     # Lets do somethig with the information
                     if NMEAline.find("GPRMC") == 1:		# The sentence is GPRMC: NMEA minimum recommended GPS navigation data
 
-
+                        
                         NMMEAsplit = clGPRMCMessage(NMEAline)		# Splitting the sentence into its variables
 
                         CheckSumCalculated = subCheckSum(NMEAline)
 
                         #print (NMMEAsplit.CRC[2:] + " " + CheckSumCalculated)
+                        #print (NMEAline)
 
                         if (NMMEAsplit.CRC[2:] != CheckSumCalculated):
                             print ("Fail: " + NMMEAsplit.CRC[2:] + " " + CheckSumCalculated + " " + NMEAline)
@@ -332,13 +376,13 @@ while True:
 
                     if NMEAline.find("GPGGA") == 1:		# The sentence is GPRMC: NMEA minimum recommended GPS navigation data
 
-
                         NMMEAsplit = clGPGGAMessage(NMEAline)		# Splitting the sentence into its variables
 
                         CheckSumCalculated = subCheckSum(NMEAline)
 
                         #print (NMMEAsplit.CRC[1:] + " " + CheckSumCalculated)
-
+                        #print (NMEAline)
+                        
                         if (NMMEAsplit.CRC[1:] != CheckSumCalculated):
                             print ("Fail: " + NMMEAsplit.CRC[2:] + " " + CheckSumCalculated + " " + NMEAline)
                             
@@ -352,6 +396,7 @@ while True:
                         CheckSumCalculated = subCheckSum(NMEAline)
                     
                         #print (NMMEAsplit.CRC[2:] + " " + CheckSumCalculated)
+                        print (NMEAline[:len(NMEAline)-2])
                         
                         if (NMMEAsplit.CRC[2:] != CheckSumCalculated):
                             print ("Fail: " + NMMEAsplit.CRC[2:] + " " + CheckSumCalculated + " " + NMEAline)
@@ -359,15 +404,21 @@ while True:
 
                     if NMEAline.find("PFLAU") == 1:		# The sentence is PFLAU: Operating status, priority intruder and obstacle warnings
 
-                        NMMEAsplit = clPFLAUMessage(NMEAline)		# Splitting the sentence into its variables
+                        print (NMEAline[:len(NMEAline)-2])
+
+                        try:											# Mitigating a bug in the FLARM RedBox
+                            NMMEAsplit = clPFLAUMessage(NMEAline)		# Splitting the sentence into its variables
+                        except:
+                            NMMEAsplit = clPFLAUMessage2(NMEAline)		# Splitting the sentence into its variables
                     
                         CheckSumCalculated = subCheckSum(NMEAline)
 
                         #print (NMMEAsplit.CRC[1:] + " " + CheckSumCalculated)
-
+                        print (NMEAline[:len(NMEAline)-2])
+                        
                         if (NMMEAsplit.CRC[1:] != CheckSumCalculated):
                             print ("Fail: " + NMMEAsplit.CRC[2:] + " " + CheckSumCalculated + " " + NMEAline)
-
+                    
 
                 # Increment counters and saxe the previous value
                 i = i + 1
@@ -385,4 +436,6 @@ while True:
                 
                 
                     
+
+
 
