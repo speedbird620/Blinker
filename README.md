@@ -16,9 +16,11 @@ Batt = Power out
 Mode 0 (zero)
 
 
+
 ![image](https://github.com/speedbird620/Blinker/assets/50543575/7401771b-f156-4108-8882-cf521c4fa47b)
 
 Mode 1
+
 
 
 ![image](https://github.com/speedbird620/Blinker/assets/50543575/e19c6538-715b-4e64-ac90-c7677c8520a4)
@@ -26,14 +28,17 @@ Mode 1
 Mode 2
 
 
+
 ![image](https://github.com/speedbird620/Blinker/assets/50543575/aaed1332-38a9-4843-92f9-64f33d068e36)
 
 Mode 3
 
 
+
 ![image](https://github.com/speedbird620/Blinker/assets/50543575/7765b965-9717-4a2b-88a2-e1ea954df80c)
 
 Mode 4
+
 
 
 ![image](https://github.com/speedbird620/Blinker/assets/50543575/54c38c74-f865-416f-8f4f-417e9a169cf2)
