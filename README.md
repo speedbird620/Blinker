@@ -3,8 +3,9 @@ Test code for setting an relay when a FLARM is setting alarm level != 0 in the P
 1
 ![image](https://github.com/speedbird620/Blinker/assets/50543575/8bd8dc96-e763-4517-a3cc-e13d8cc22ca7)
 
-4
+
 ![image](https://github.com/speedbird620/Blinker/assets/50543575/f4074236-48d8-4293-b9d3-2956fef9fdef)
+
 12V = Power in
 Batt = Power out
 
