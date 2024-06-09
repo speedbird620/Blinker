@@ -17,14 +17,13 @@ xhar_ascii = ""
 NMEAin = ""
 NMEAline = ""
 NMEAleftover = ""
+TimeStampOn = 0
+TimeOut = 4
 
 x = ""
 x_old = ""
 sentence = ""
 WD = False
-AntiLoop = 0
-AntiLoopTimeout = 12000
-
 
 def subCheckSum(sentence):
     strCalculated = ""
@@ -74,6 +73,29 @@ def subWatchDog(wd_in):
             wd_out = True
             WatchDogOUT.value(1)
         return wd_out
+
+def verifyCheckSum(calcCheckSum,extractedCheckSum):
+
+    #print ("A :" + extractedCheckSum)
+    extractedCheckSum = extractedCheckSum[len(extractedCheckSum)-2:]	# Lets shorten the checksum down to two chars
+    #print ("B :" + extractedCheckSum)
+
+    if (calcCheckSum != extractedCheckSum):		# Comparing the values
+        return False
+    else:
+        return True
+        
+def setRelay(input):
+    if input:
+        print ("Relay on")
+        RelayK1.value(1)
+        RelayK2.value(1)
+        return time.time()
+    else:
+        print ("Relay off")
+        RelayK1.value(0)
+        RelayK2.value(0)
+        return 0
 
 class clPFLAAMessage(object):
 
@@ -220,7 +242,7 @@ class clGPRMCMessage(object):
         # See https://aprs.gids.nl/nmea/#rmc for more information
 
         # Example $GPRMC,150242.00,A,5911.22585,N,01739.40910,E,0.201,294.43,280821,,,A*60
-
+        #         $GPRMC,073523.00,A,5911.23020,N,01739.41778,E,0.310,280.90,090624,,,A*68
         # 150242.00     Time Stamp
         # A             Validity - A-ok, V-invalid
         # 5911.22585    Current Latitude
@@ -259,7 +281,7 @@ class clGPGGAMessage(object):
         # See https://aprs.gids.nl/nmea/#gga for more information
 
         # Example $GPGGA,091358.00,5911.23442,N,01739.42496,E,1,06,1.40,30.3,M,24.1,M,,*60
-              
+        #         $GPGGA,073523.00,5911.23020,N,01739.41778,E,1,07,3.14,36.8,M,24.1,M,,*69
         # 091358.00		= UTC of Position
         # 5911.23442	= Latitude
         # N				= N or S
@@ -293,18 +315,18 @@ class clGPGGAMessage(object):
         ) = sentance.replace("\r\n","").replace(":",",").split(",")
 
 while True:
-    #time.sleep(0.1)
+    #time.sleep(0.2)
     WD = subWatchDog(WD)
 
-    now = time.time()
-    if now > (AntiLoop + AntiLoopTimeout):
-        RelayK1.value(0)
-        RelayK2.value(0)
+    if (TimeStampOn > 0):
+        print (str(time.time() - TimeStampOn))
+        if (time.time() > (TimeStampOn + TimeOut)):
+            TimeStampOn = setRelay(False)
 
     data_old = ""
     NMEAin = ""
 
-    time.sleep(0.5)
+    time.sleep(0.1)
     while uart0.any() > 0:
         #rxData += uart0.read(1)
         char = uart0.readline()
@@ -320,11 +342,10 @@ while True:
     i = 1
     j = 1
     
-
     if len(NMEAin) > 1:	    # Something has been recieved on the UART, lets check it out
         
         # Adding the leftovers from the last evaluation
-        #NMEAin = NMEAleftover + NMEAin
+        NMEAin = NMEAleftover + NMEAin
         #print ("NMEAin: " + NMEAin)
 
         # Setting the scene    
@@ -359,67 +380,47 @@ while True:
                     
                     #print ("i : " + str(FoundDollar) + " j : " + str(FoundNewLine) + " NMEA: " + NMEAline)	# Printing the start and end point for trouble shooting purpose
 
+                    CheckSumCalculated = subCheckSum(NMEAline)
+
                     # Lets do somethig with the information
                     if NMEAline.find("GPRMC") == 1:		# The sentence is GPRMC: NMEA minimum recommended GPS navigation data
-
                         
                         NMMEAsplit = clGPRMCMessage(NMEAline)		# Splitting the sentence into its variables
 
-                        CheckSumCalculated = subCheckSum(NMEAline)
-
-                        #print (NMMEAsplit.CRC[2:] + " " + CheckSumCalculated)
-                        #print (NMEAline)
-
-                        if (NMMEAsplit.CRC[2:] != CheckSumCalculated):
-                            print ("Fail: " + NMMEAsplit.CRC[2:] + " " + CheckSumCalculated + " " + NMEAline)
-
+                        if not verifyCheckSum(CheckSumCalculated,NMMEAsplit.CRC):		# Scrutinizing the checksum
+                            print ("CRC fail: " + NMMEAsplit.CRC + " " + CheckSumCalculated + " " + NMEAline)		# Bad checksum
+                        else:		# Good checksum
+                            print (NMEAline)
+                            print (NMMEAsplit.Valid)
+                            if NMMEAsplit.Valid == "A":		# The GPS has a valid signal
+                                TimeStampOn = setRelay(True)				# Activating the relay
 
                     if NMEAline.find("GPGGA") == 1:		# The sentence is GPRMC: NMEA minimum recommended GPS navigation data
 
                         NMMEAsplit = clGPGGAMessage(NMEAline)		# Splitting the sentence into its variables
 
-                        CheckSumCalculated = subCheckSum(NMEAline)
-
-                        #print (NMMEAsplit.CRC[1:] + " " + CheckSumCalculated)
-                        #print (NMEAline)
-                        
-                        if (NMMEAsplit.CRC[1:] != CheckSumCalculated):
-                            print ("Fail: " + NMMEAsplit.CRC[2:] + " " + CheckSumCalculated + " " + NMEAline)
-                            
-                        #print ("GPS: " + NMMEAsplit.GPS)
-
-
+                        if not verifyCheckSum(CheckSumCalculated,NMMEAsplit.CRC):		# Scrutinizing the checksum
+                            print ("CRC fail: " + NMMEAsplit.CRC + " " + CheckSumCalculated + " " + NMEAline)		# Bad checksum
+                                    
                     if NMEAline.find("PFLAA") == 1:		# The sentence is PFLAA: Data on other proximate aircraft
 
                         NMMEAsplit = clPFLAAMessage(NMEAline)		# Splitting the sentence into its variables
-                    
-                        CheckSumCalculated = subCheckSum(NMEAline)
-                    
-                        #print (NMMEAsplit.CRC[2:] + " " + CheckSumCalculated)
-                        print (NMEAline[:len(NMEAline)-2])
-                        
-                        if (NMMEAsplit.CRC[2:] != CheckSumCalculated):
-                            print ("Fail: " + NMMEAsplit.CRC[2:] + " " + CheckSumCalculated + " " + NMEAline)
 
+                        if not verifyCheckSum(CheckSumCalculated,NMMEAsplit.CRC):		# Scrutinizing the checksum
+                            print ("CRC fail: " + NMMEAsplit.CRC + " " + CheckSumCalculated + " " + NMEAline)		# Bad checksum
 
                     if NMEAline.find("PFLAU") == 1:		# The sentence is PFLAU: Operating status, priority intruder and obstacle warnings
-
-                        print (NMEAline[:len(NMEAline)-2])
 
                         try:											# Mitigating a bug in the FLARM RedBox
                             NMMEAsplit = clPFLAUMessage(NMEAline)		# Splitting the sentence into its variables
                         except:
                             NMMEAsplit = clPFLAUMessage2(NMEAline)		# Splitting the sentence into its variables
                     
-                        CheckSumCalculated = subCheckSum(NMEAline)
-
-                        #print (NMMEAsplit.CRC[1:] + " " + CheckSumCalculated)
-                        print (NMEAline[:len(NMEAline)-2])
-                        
-                        if (NMMEAsplit.CRC[1:] != CheckSumCalculated):
-                            print ("Fail: " + NMMEAsplit.CRC[2:] + " " + CheckSumCalculated + " " + NMEAline)
-                    
-
+                        if not verifyCheckSum(CheckSumCalculated,NMMEAsplit.CRC):		# Scrutinizing the checksum
+                            print ("CRC fail: " + NMMEAsplit.CRC + " " + CheckSumCalculated + " " + NMEAline)		# Bad checksum
+                   
+ 
+ 
                 # Increment counters and saxe the previous value
                 i = i + 1
                 j = j + 1
@@ -431,9 +432,8 @@ while True:
             NMEAin = NMEAin[FoundNewLine:]	# Extracting the NMEA-string from the UART information
 
             NMEAleftover = NMEAin	# Saving the leftovers from the scrutinized string
-            #print ("NMEAleftover: " + NMEAleftover)
+            #print ("Left: " + NMEAleftover)
             #print ("P")    
-                
                 
                     
 
