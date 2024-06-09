@@ -9,8 +9,12 @@ RelayK1 = Pin(3, Pin.OUT)            # Power to FLARM-display (both 3 and 12 vol
 RelayK2 = Pin(5, Pin.OUT)            # Latch to keep the FLARM on
 WatchDogOUT = Pin(12, Pin.OUT)       # Ouput to the hardware watchdog
 WatchDogIN = Pin(13, Pin.OUT)        # Input of watchdog signal, only used when the signal watchdog out shall be inverted
-TestPin = Pin(6, Pin.IN, Pin.PULL_UP)
 
+GP6 = Pin(6, Pin.IN, Pin.PULL_UP)    # Pin for identifying mode
+GP7 = Pin(7, Pin.IN, Pin.PULL_UP)    # Pin for identifying mode
+GP8 = Pin(8, Pin.IN, Pin.PULL_UP)    # Pin for identifying mode
+GP9 = Pin(9, Pin.IN, Pin.PULL_UP)    # Pin for identifying mode
+GP10 = Pin(10, Pin.IN, Pin.PULL_UP)  # Pin for identifying mode
 
 char = b''
 xhar_ascii = ""
@@ -19,11 +23,27 @@ NMEAline = ""
 NMEAleftover = ""
 TimeStampOn = 0
 TimeOut = 4
-
+TestMode = -1
+TestMode_Old = 0
 x = ""
 x_old = ""
 sentence = ""
 WD = False
+
+def subCheckMode():			# Check the mode
+    if not GP6.value():     
+        mode = 1			# Set relay if GPS-signal is valid
+    elif not GP7.value():
+        mode = 2			# Set relay if ...
+    elif not GP8.value():
+        mode = 3			# Set relay if ...
+    elif not GP9.value():
+        mode = 4			# Force relay on
+    elif not GP10.value():
+        mode = 5			# Force relay off
+    else:
+        mode = 0
+    return mode
 
 def subCheckSum(sentence):
     strCalculated = ""
@@ -63,18 +83,15 @@ def subCheckSum(sentence):
 
 def subWatchDog(wd_in):
     # Altering the watchdog output
-    if not TestPin():
-        exit()
+    if wd_in:
+        wd_out = False
+        WatchDogOUT.value(0)
     else:
-        if wd_in:
-            wd_out = False
-            WatchDogOUT.value(0)
-        else:
-            wd_out = True
-            WatchDogOUT.value(1)
-        return wd_out
+        wd_out = True
+        WatchDogOUT.value(1)
+    return wd_out
 
-def verifyCheckSum(calcCheckSum,extractedCheckSum):
+def subVerifyCheckSum(calcCheckSum,extractedCheckSum):
 
     #print ("A :" + extractedCheckSum)
     extractedCheckSum = extractedCheckSum[len(extractedCheckSum)-2:]	# Lets shorten the checksum down to two chars
@@ -87,12 +104,14 @@ def verifyCheckSum(calcCheckSum,extractedCheckSum):
         
 def setRelay(input):
     if input:
-        print ("Relay on")
+        if RelayK1.value() == 0:
+            print ("Relay on")
         RelayK1.value(1)
         RelayK2.value(1)
         return time.time()
     else:
-        print ("Relay off")
+        if RelayK1.value():
+            print ("Relay off")
         RelayK1.value(0)
         RelayK2.value(0)
         return 0
@@ -282,6 +301,8 @@ class clGPGGAMessage(object):
 
         # Example $GPGGA,091358.00,5911.23442,N,01739.42496,E,1,06,1.40,30.3,M,24.1,M,,*60
         #         $GPGGA,073523.00,5911.23020,N,01739.41778,E,1,07,3.14,36.8,M,24.1,M,,*69
+        #         $GPGGA,105457.00,5911.23170,N,01739.42539,E,1,07,1.38,23.9,M,24.1,M,,*62
+        
         # 091358.00		= UTC of Position
         # 5911.23442	= Latitude
         # N				= N or S
@@ -316,10 +337,30 @@ class clGPGGAMessage(object):
 
 while True:
     #time.sleep(0.2)
+    
+    TestMode = subCheckMode()
+    if (TestMode != TestMode_Old):
+        print ("Mode: " + str(TestMode))
+
+    TestMode_Old = TestMode
+    
+    while TestMode == 4:
+        setRelay(True)
+        TimeStampOn = 1
+        WD = subWatchDog(WD)
+        TestMode = subCheckMode()
+        
+
+    while TestMode == 5:
+        setRelay(False)
+        TimeStampOn = 1
+        WD = subWatchDog(WD)
+        TestMode = subCheckMode()
+   
     WD = subWatchDog(WD)
 
     if (TimeStampOn > 0):
-        print (str(time.time() - TimeStampOn))
+        #print (str(time.time() - TimeStampOn))
         if (time.time() > (TimeStampOn + TimeOut)):
             TimeStampOn = setRelay(False)
 
@@ -385,38 +426,56 @@ while True:
                     # Lets do somethig with the information
                     if NMEAline.find("GPRMC") == 1:		# The sentence is GPRMC: NMEA minimum recommended GPS navigation data
                         
-                        NMMEAsplit = clGPRMCMessage(NMEAline)		# Splitting the sentence into its variables
+                        try:
+                            NMMEAsplit = clGPRMCMessage(NMEAline)		# Splitting the sentence into its variables
+                        except:
+                            print ("Failed NMEAline: " +(NMEAline))
 
-                        if not verifyCheckSum(CheckSumCalculated,NMMEAsplit.CRC):		# Scrutinizing the checksum
+                        if not subVerifyCheckSum(CheckSumCalculated,NMMEAsplit.CRC):		# Scrutinizing the checksum
                             print ("CRC fail: " + NMMEAsplit.CRC + " " + CheckSumCalculated + " " + NMEAline)		# Bad checksum
                         else:		# Good checksum
-                            print (NMEAline)
-                            print (NMMEAsplit.Valid)
-                            if NMMEAsplit.Valid == "A":		# The GPS has a valid signal
-                                TimeStampOn = setRelay(True)				# Activating the relay
+                            #print (NMEAline)
+                            #print (NMMEAsplit.Valid)
+                            if NMMEAsplit.Valid == "A" and TestMode == 1:		# Testmode: det relay if GPS has a valid signal
+                                TimeStampOn = setRelay(True)					# Activating the relay
 
                     if NMEAline.find("GPGGA") == 1:		# The sentence is GPRMC: NMEA minimum recommended GPS navigation data
 
-                        NMMEAsplit = clGPGGAMessage(NMEAline)		# Splitting the sentence into its variables
+                        try:
+                            NMMEAsplit = clGPGGAMessage(NMEAline)		# Splitting the sentence into its variables
+                        except:
+                            print ("Failed NMEAline: " +(NMEAline))
 
-                        if not verifyCheckSum(CheckSumCalculated,NMMEAsplit.CRC):		# Scrutinizing the checksum
+                        if not subVerifyCheckSum(CheckSumCalculated,NMMEAsplit.CRC):		# Scrutinizing the checksum
                             print ("CRC fail: " + NMMEAsplit.CRC + " " + CheckSumCalculated + " " + NMEAline)		# Bad checksum
                                     
                     if NMEAline.find("PFLAA") == 1:		# The sentence is PFLAA: Data on other proximate aircraft
 
-                        NMMEAsplit = clPFLAAMessage(NMEAline)		# Splitting the sentence into its variables
+                        try:
+                            NMMEAsplit = clPFLAAMessage(NMEAline)		# Splitting the sentence into its variables
+                        except:
+                            print ("Failed NMEAline: " +(NMEAline))
 
-                        if not verifyCheckSum(CheckSumCalculated,NMMEAsplit.CRC):		# Scrutinizing the checksum
+                        if subVerifyCheckSum(CheckSumCalculated,NMMEAsplit.CRC):	# Scrutinizing the checksum
+                            if NMMEAsplit.AlarmLevel != 0:							# Alarm is active 
+                                TimeStampOn = setRelay(True)						# Activating the relay
+                        else:
                             print ("CRC fail: " + NMMEAsplit.CRC + " " + CheckSumCalculated + " " + NMEAline)		# Bad checksum
 
                     if NMEAline.find("PFLAU") == 1:		# The sentence is PFLAU: Operating status, priority intruder and obstacle warnings
 
-                        try:											# Mitigating a bug in the FLARM RedBox
-                            NMMEAsplit = clPFLAUMessage(NMEAline)		# Splitting the sentence into its variables
+                        try:
+                            try:											# Mitigating a bug in the FLARM RedBox
+                                NMMEAsplit = clPFLAUMessage(NMEAline)		# Splitting the sentence into its variables
+                            except:
+                                NMMEAsplit = clPFLAUMessage2(NMEAline)		# Splitting the sentence into its variables
                         except:
-                            NMMEAsplit = clPFLAUMessage2(NMEAline)		# Splitting the sentence into its variables
-                    
-                        if not verifyCheckSum(CheckSumCalculated,NMMEAsplit.CRC):		# Scrutinizing the checksum
+                            print ("Failed NMEAline: " +(NMEAline))
+
+                        if subVerifyCheckSum(CheckSumCalculated,NMMEAsplit.CRC):	# Scrutinizing the checksum
+                            if NMMEAsplit.AlarmLevel != 0:							# Alarm is active and testmode is zero
+                                TimeStampOn = setRelay(True)						# Activating the relay
+                        else:
                             print ("CRC fail: " + NMMEAsplit.CRC + " " + CheckSumCalculated + " " + NMEAline)		# Bad checksum
                    
  
