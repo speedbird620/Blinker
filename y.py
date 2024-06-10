@@ -1,3 +1,15 @@
+# Program bespoke to the FLARM blinker
+# Raspberry PI Pico
+#
+# avionics@skyracer.net
+# 0.1 - First version
+# 0.2 - Added automatic baudcheck
+#
+# https://github.com/speedbird620/Blinker
+#
+#-----------------------------------------------------------
+
+
 from machine import UART, Pin
 #import ubinascii
 import math
@@ -29,6 +41,12 @@ x = ""
 x_old = ""
 sentence = ""
 WD = False
+FindComSpeed = True
+c = 0
+ComSpeed = 0
+TryComSpeed = 0
+TestComSpeed = [38400, 9600, 19200, 28800, 4800, 56000, 56000]
+
 
 def subCheckMode():			# Check the mode
     if not GP6.value():     
@@ -107,13 +125,13 @@ def setRelay(input):
         if RelayK1.value() == 0:
             print ("Relay on")
         RelayK1.value(1)
-        RelayK2.value(1)
+        #RelayK2.value(1)
         return time.time()
     else:
         if RelayK1.value():
             print ("Relay off")
         RelayK1.value(0)
-        RelayK2.value(0)
+        #RelayK2.value(0)
         return 0
 
 class clPFLAAMessage(object):
@@ -359,11 +377,22 @@ while True:
    
     WD = subWatchDog(WD)
 
-    if (TimeStampOn > 0):
+    if (TimeStampOn > 0):								# The relay shall time out after x seconds
         #print (str(time.time() - TimeStampOn))
-        if (time.time() > (TimeStampOn + TimeOut)):
-            TimeStampOn = setRelay(False)
+        if (time.time() > (TimeStampOn + TimeOut)):		# The time is up
+            TimeStampOn = setRelay(False)				# Switching off the relay
 
+    if FindComSpeed:							# The com speed has not yet been determined
+        if time.time() > TryComSpeed + 2:		# Time to test a new speed
+            TryComSpeed = time.time()			# Time of the last try
+            c = c + 1							# Incrementing the counter
+            if c > 6: c = 1						# Resetting the counter
+            print("Testing " + str(TestComSpeed[c]) + " baud")
+            uart0 = UART(0, baudrate=TestComSpeed[c], tx=Pin(0), rx=Pin(1))		# Set a new baud rate to test
+    
+    
+
+    # Resetting the variables
     data_old = ""
     NMEAin = ""
 
@@ -372,7 +401,10 @@ while True:
         #rxData += uart0.read(1)
         char = uart0.readline()
         #print(char)
-        char_ascii = (char.decode("utf-8","ignore"))
+        try:
+            char_ascii = (char.decode("utf-8","ignore"))
+        except:
+            char_ascii = ""
         #print("A")
         #print(data)
         NMEAin += char_ascii
@@ -422,7 +454,7 @@ while True:
                     #print ("i : " + str(FoundDollar) + " j : " + str(FoundNewLine) + " NMEA: " + NMEAline)	# Printing the start and end point for trouble shooting purpose
 
                     CheckSumCalculated = subCheckSum(NMEAline)
-
+                    
                     # Lets do somethig with the information
                     if NMEAline.find("GPRMC") == 1:		# The sentence is GPRMC: NMEA minimum recommended GPS navigation data
                         
@@ -448,7 +480,7 @@ while True:
 
                         if not subVerifyCheckSum(CheckSumCalculated,NMMEAsplit.CRC):		# Scrutinizing the checksum
                             print ("CRC fail: " + NMMEAsplit.CRC + " " + CheckSumCalculated + " " + NMEAline)		# Bad checksum
-                                    
+
                     if NMEAline.find("PFLAA") == 1:		# The sentence is PFLAA: Data on other proximate aircraft
 
                         try:
@@ -477,8 +509,12 @@ while True:
                                 TimeStampOn = setRelay(True)						# Activating the relay
                         else:
                             print ("CRC fail: " + NMMEAsplit.CRC + " " + CheckSumCalculated + " " + NMEAline)		# Bad checksum
-                   
- 
+
+                    if subVerifyCheckSum(CheckSumCalculated,NMMEAsplit.CRC):	# Scrutinizing the checksum
+                        if FindComSpeed:										# Valid NMEA-sentence is found, baud rate is correct
+                            print("Disco, baud rate is found to be " + str(TestComSpeed[c]) + " baud")
+                            FindComSpeed = False								# I still havent found what Im looking for ... not
+
  
                 # Increment counters and saxe the previous value
                 i = i + 1
@@ -495,6 +531,3 @@ while True:
             #print ("P")    
                 
                     
-
-
-
